@@ -19,11 +19,12 @@ export default function ClassDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { addBooking, bookings } = useApp();
+  const { profile, addBooking, bookings } = useApp();
   const [booking, setBooking] = useState(false);
 
   const cls = fitnessClasses.find(c => c.id === id);
   const btmPad = Platform.OS === 'web' ? 34 : insets.bottom + 16;
+  const isPro = profile?.isPro ?? false;
 
   if (!cls) {
     return (
@@ -39,6 +40,10 @@ export default function ClassDetailScreen() {
   const isBooked = bookings.some(b => b.classId === cls.id && b.status === 'upcoming');
 
   function handleBook() {
+    if (!isPro) {
+      router.push('/pro');
+      return;
+    }
     if (isBooked) {
       Alert.alert('Already Booked', `You have already booked ${cls.studioName}.`);
       return;
@@ -50,7 +55,7 @@ export default function ClassDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setBooking(true);
     setTimeout(() => {
-      const booking: ClassBooking = {
+      const newBooking: ClassBooking = {
         id: Date.now().toString(),
         classId: cls.id,
         className: `${cls.studioName} — ${cls.classType}`,
@@ -61,7 +66,7 @@ export default function ClassDetailScreen() {
         price: cls.price,
         status: 'upcoming',
       };
-      addBooking(booking);
+      addBooking(newBooking);
       setBooking(false);
       Alert.alert(
         '🎉 Booking Confirmed!',
@@ -77,7 +82,7 @@ export default function ClassDetailScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: btmPad + 100 }}>
+        contentContainerStyle={{ paddingBottom: btmPad + 140 }}>
 
         {/* Hero banner */}
         <View style={{ backgroundColor: colors.primary, padding: 24, paddingTop: 20 }}>
@@ -111,7 +116,7 @@ export default function ClassDetailScreen() {
                 { icon: 'activity', label: `${cls.duration} min` },
               ].map(item => (
                 <View key={item.icon} style={{ alignItems: 'center', gap: 6 }}>
-                  <Feather name={item.icon as any} size={20} color={colors.primary} />
+                  <Feather name={item.icon as React.ComponentProps<typeof Feather>['name']} size={20} color={colors.primary} />
                   <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14, textAlign: 'center' }}>
                     {item.label}
                   </Text>
@@ -142,7 +147,7 @@ export default function ClassDetailScreen() {
             <Text style={{ color: colors.text, fontSize: 15, lineHeight: 24 }}>{cls.description}</Text>
           </View>
 
-          {/* Spots availability */}
+          {/* Spots */}
           <View style={{ backgroundColor: colors.card, borderRadius: colors.radius, padding: 16,
             marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -186,14 +191,35 @@ export default function ClassDetailScreen() {
           <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>Class fee</Text>
           <Text style={{ color: colors.text, fontWeight: '800', fontSize: 28 }}>R{cls.price}</Text>
         </View>
-        <TouchableOpacity onPress={handleBook} disabled={booking || isBooked || cls.spotsLeft === 0}
-          style={{ backgroundColor: isBooked ? colors.success : cls.spotsLeft === 0 ? colors.muted : colors.primary,
-            borderRadius: 50, paddingVertical: 18, alignItems: 'center' }}>
-          <Text style={{ color: isBooked || cls.spotsLeft === 0 ? colors.mutedForeground : '#FFF',
-            fontSize: 17, fontWeight: '700' }}>
-            {booking ? 'Booking...' : isBooked ? '✓ Booked' : cls.spotsLeft === 0 ? 'Fully Booked' : `Book for R${cls.price}`}
+
+        {!isPro ? (
+          <TouchableOpacity
+            onPress={() => router.push('/pro')}
+            style={{ backgroundColor: colors.secondary, borderRadius: 50, paddingVertical: 18,
+              alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 }}
+          >
+            <Feather name="lock" size={18} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700' }}>Unlock Booking — Pro</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={handleBook}
+            disabled={booking || isBooked || cls.spotsLeft === 0}
+            style={{ backgroundColor: isBooked ? colors.success : cls.spotsLeft === 0 ? colors.muted : colors.primary,
+              borderRadius: 50, paddingVertical: 18, alignItems: 'center' }}
+          >
+            <Text style={{ color: isBooked || cls.spotsLeft === 0 ? colors.mutedForeground : '#FFF',
+              fontSize: 17, fontWeight: '700' }}>
+              {booking ? 'Booking…' : isBooked ? '✓ Booked' : cls.spotsLeft === 0 ? 'Fully Booked' : `Book for R${cls.price}`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {!isPro && (
+          <Text style={{ textAlign: 'center', color: colors.mutedForeground, fontSize: 12, marginTop: 10 }}>
+            Pro members can reserve spots at all SA studios
           </Text>
-        </TouchableOpacity>
+        )}
       </View>
     </View>
   );

@@ -23,6 +23,40 @@ const MEALS: { key: MealType; label: string; icon: string }[] = [
   { key: 'snacks', label: 'Snacks', icon: '🍎' },
 ];
 
+const FREE_DIARY_LIMIT = 5;
+
+function ProLockCard({ title, description, cta }: { title: string; description: string; cta: string }) {
+  const colors = useColors();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <View style={{
+        width: 72, height: 72, borderRadius: 36,
+        backgroundColor: colors.secondary + '18',
+        alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+      }}>
+        <Feather name="lock" size={32} color={colors.secondary} />
+      </View>
+      <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 10 }}>
+        {title}
+      </Text>
+      <Text style={{ fontSize: 14, color: colors.mutedForeground, textAlign: 'center', lineHeight: 21, marginBottom: 28 }}>
+        {description}
+      </Text>
+      <TouchableOpacity
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/pro'); }}
+        style={{ backgroundColor: colors.secondary, borderRadius: 50, paddingVertical: 14, paddingHorizontal: 36,
+          flexDirection: 'row', alignItems: 'center', gap: 8 }}
+      >
+        <Feather name="star" size={16} color="#fff" />
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{cta}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.push('/pro')} style={{ marginTop: 14 }}>
+        <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>See what's included in Pro →</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function NutritionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -41,6 +75,10 @@ export default function NutritionScreen() {
   const btmPad = Platform.OS === 'web' ? 100 : insets.bottom + 80;
   const today = new Date().toISOString().split('T')[0];
   const diary = getTodayDiary();
+  const isPro = profile?.isPro ?? false;
+
+  const totalEntries = diary.entries.length;
+  const diaryFull = !isPro && totalEntries >= FREE_DIARY_LIMIT;
 
   const totalCal = Math.round(diary.entries.reduce((s, e) => s + e.calories, 0));
   const totalProt = Math.round(diary.entries.reduce((s, e) => s + e.protein, 0));
@@ -48,8 +86,8 @@ export default function NutritionScreen() {
   const totalFat = Math.round(diary.entries.reduce((s, e) => s + e.fat, 0));
 
   const filteredFoods = foodSearch.trim()
-    ? foodDatabase.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).slice(0, 30)
-    : foodDatabase.slice(0, 30);
+    ? foodDatabase.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).slice(0, 40)
+    : foodDatabase.slice(0, 40);
 
   function addFood(food: FoodItem) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -68,6 +106,15 @@ export default function NutritionScreen() {
     addFoodEntry(entry, today);
     setShowFoodModal(false);
     setFoodSearch('');
+  }
+
+  function handleOpenFoodModal(meal: MealType) {
+    if (diaryFull) {
+      router.push('/pro');
+      return;
+    }
+    setActiveMeal(meal);
+    setShowFoodModal(true);
   }
 
   function handleGenerate(budget: 'economy' | 'standard' | 'premium') {
@@ -99,41 +146,45 @@ export default function NutritionScreen() {
           <TouchableOpacity
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              if (profile?.isPro) {
-                router.push('/scanner');
-              } else {
-                router.push('/pro');
-              }
+              router.push(isPro ? '/scanner' : '/pro');
             }}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
-              backgroundColor: profile?.isPro ? colors.secondary + '18' : colors.secondary,
+              backgroundColor: isPro ? colors.secondary + '18' : colors.secondary,
               paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
             }}
           >
-            <Feather name="camera" size={15} color={profile?.isPro ? colors.secondary : '#fff'} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: profile?.isPro ? colors.secondary : '#fff' }}>
+            <Feather name="camera" size={15} color={isPro ? colors.secondary : '#fff'} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: isPro ? colors.secondary : '#fff' }}>
               Scan Meal
             </Text>
-            {!profile?.isPro && (
+            {!isPro && (
               <View style={{ backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
                 <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>PRO</Text>
               </View>
             )}
           </TouchableOpacity>
         </View>
-        <View style={{ flexDirection: 'row', backgroundColor: colors.muted,
-          borderRadius: 12, padding: 3 }}>
-          {(['diary', 'plan', 'grocery'] as SubTab[]).map(tab => (
-            <TouchableOpacity key={tab}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
-              style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center',
-                backgroundColor: activeTab === tab ? colors.card : 'transparent' }}>
-              <Text style={{ fontWeight: '700', fontSize: 14,
-                color: activeTab === tab ? colors.primary : colors.mutedForeground,
-                textTransform: 'capitalize' }}>{tab}</Text>
-            </TouchableOpacity>
-          ))}
+
+        {/* Tabs */}
+        <View style={{ flexDirection: 'row', backgroundColor: colors.muted, borderRadius: 12, padding: 3 }}>
+          {(['diary', 'plan', 'grocery'] as SubTab[]).map(tab => {
+            const isLocked = !isPro && (tab === 'plan' || tab === 'grocery');
+            return (
+              <TouchableOpacity key={tab}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
+                style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center',
+                  flexDirection: 'row', justifyContent: 'center', gap: 4,
+                  backgroundColor: activeTab === tab ? colors.card : 'transparent' }}>
+                {isLocked && <Feather name="lock" size={11} color={activeTab === tab ? colors.secondary : colors.mutedForeground} />}
+                <Text style={{ fontWeight: '700', fontSize: 13,
+                  color: activeTab === tab
+                    ? (isLocked ? colors.secondary : colors.primary)
+                    : colors.mutedForeground,
+                  textTransform: 'capitalize' }}>{tab}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -141,6 +192,33 @@ export default function NutritionScreen() {
       {activeTab === 'diary' && (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: btmPad }}
           showsVerticalScrollIndicator={false}>
+
+          {/* Free limit warning */}
+          {!isPro && (
+            <TouchableOpacity
+              onPress={() => router.push('/pro')}
+              style={{
+                backgroundColor: diaryFull ? colors.secondary + '18' : colors.primary + '10',
+                borderRadius: 12, padding: 12, marginBottom: 14,
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                borderWidth: 1, borderColor: diaryFull ? colors.secondary + '40' : colors.primary + '20',
+              }}
+            >
+              <Feather name={diaryFull ? 'lock' : 'info'} size={16} color={diaryFull ? colors.secondary : colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: diaryFull ? colors.secondary : colors.primary }}>
+                  {diaryFull
+                    ? `Daily limit reached (${FREE_DIARY_LIMIT} entries)`
+                    : `Free plan: ${totalEntries}/${FREE_DIARY_LIMIT} entries today`}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.mutedForeground, marginTop: 1 }}>
+                  {diaryFull ? 'Upgrade to Pro for unlimited logging' : 'Upgrade to Pro for unlimited entries'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={14} color={diaryFull ? colors.secondary : colors.primary} />
+            </TouchableOpacity>
+          )}
+
           {/* Daily summary */}
           <View style={{ backgroundColor: colors.card, borderRadius: colors.radius, padding: 16,
             marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
@@ -198,21 +276,26 @@ export default function NutritionScreen() {
                       <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{mealCal} kcal</Text>
                     )}
                     <TouchableOpacity
-                      onPress={() => { setActiveMeal(meal.key); setShowFoodModal(true); }}
-                      style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary,
-                        alignItems: 'center', justifyContent: 'center' }}>
-                      <Feather name="plus" size={16} color="#FFF" />
+                      onPress={() => handleOpenFoodModal(meal.key)}
+                      style={{
+                        width: 30, height: 30, borderRadius: 15,
+                        backgroundColor: diaryFull ? colors.muted : colors.primary,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                      <Feather name={diaryFull ? 'lock' : 'plus'} size={16} color={diaryFull ? colors.mutedForeground : '#FFF'} />
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 {entries.length === 0 ? (
                   <TouchableOpacity
-                    onPress={() => { setActiveMeal(meal.key); setShowFoodModal(true); }}
+                    onPress={() => handleOpenFoodModal(meal.key)}
                     style={{ backgroundColor: colors.muted, borderRadius: 12, padding: 16,
                       alignItems: 'center', borderWidth: 1, borderColor: colors.border,
                       borderStyle: 'dashed' }}>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>Tap to log food</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
+                      {diaryFull ? '🔒 Limit reached — upgrade to add more' : 'Tap to log food'}
+                    </Text>
                   </TouchableOpacity>
                 ) : (
                   entries.map(entry => (
@@ -246,132 +329,148 @@ export default function NutritionScreen() {
 
       {/* ── PLAN TAB ── */}
       {activeTab === 'plan' && (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: btmPad }}
-          showsVerticalScrollIndicator={false}>
-          <TouchableOpacity onPress={() => setShowBudgetModal(true)}
-            style={{ backgroundColor: colors.primary, borderRadius: colors.radius, padding: 16,
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-              gap: 8, marginBottom: 20 }}>
-            <Feather name="refresh-cw" size={18} color="#FFF" />
-            <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>
-              {mealPlan ? 'Regenerate Plan' : 'Generate 7-Day Meal Plan'}
-            </Text>
-          </TouchableOpacity>
+        !isPro ? (
+          <ProLockCard
+            title="AI Meal Planner"
+            description={"Generate a personalised 7-day South African meal plan at your budget — economy, standard, or premium. Includes breakfast, lunch, and dinner with prep times."}
+            cta="Unlock Meal Planner"
+          />
+        ) : (
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: btmPad }}
+            showsVerticalScrollIndicator={false}>
+            <TouchableOpacity onPress={() => setShowBudgetModal(true)}
+              style={{ backgroundColor: colors.primary, borderRadius: colors.radius, padding: 16,
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                gap: 8, marginBottom: 20 }}>
+              <Feather name="refresh-cw" size={18} color="#FFF" />
+              <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 16 }}>
+                {mealPlan ? 'Regenerate Plan' : 'Generate 7-Day Meal Plan'}
+              </Text>
+            </TouchableOpacity>
 
-          {mealPlan ? (
-            mealPlan.map((day, i) => (
-              <View key={i} style={{ marginBottom: 14, backgroundColor: colors.card,
-                borderRadius: colors.radius, overflow: 'hidden',
-                shadowColor: '#000', shadowOpacity: 0.05, elevation: 2 }}>
-                <View style={{ backgroundColor: colors.primary + '18', padding: 14 }}>
-                  <Text style={{ fontWeight: '800', fontSize: 16, color: colors.primary }}>{day.day}</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}>
-                    {day.breakfast.calories + day.lunch.calories + day.dinner.calories} kcal total
-                  </Text>
-                </View>
-                {[
-                  { m: day.breakfast, icon: '🌅', label: 'Breakfast' },
-                  { m: day.lunch, icon: '☀️', label: 'Lunch' },
-                  { m: day.dinner, icon: '🌙', label: 'Dinner' },
-                ].map((row, j) => (
-                  <View key={j} style={{ padding: 14, borderTopWidth: j > 0 ? 1 : 0,
-                    borderTopColor: colors.border }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Text style={{ fontSize: 18 }}>{row.icon}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.mutedForeground, fontSize: 10, fontWeight: '700',
-                          letterSpacing: 0.5 }}>{row.label.toUpperCase()}</Text>
-                        <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14, marginTop: 2 }}
-                          numberOfLines={1}>{row.m.name}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={{ color: colors.secondary, fontWeight: '700', fontSize: 15 }}>
-                          {row.m.calories} kcal
-                        </Text>
-                        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-                          {row.m.prepTime} min
-                        </Text>
+            {mealPlan ? (
+              mealPlan.map((day, i) => (
+                <View key={i} style={{ marginBottom: 14, backgroundColor: colors.card,
+                  borderRadius: colors.radius, overflow: 'hidden',
+                  shadowColor: '#000', shadowOpacity: 0.05, elevation: 2 }}>
+                  <View style={{ backgroundColor: colors.primary + '18', padding: 14 }}>
+                    <Text style={{ fontWeight: '800', fontSize: 16, color: colors.primary }}>{day.day}</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}>
+                      {day.breakfast.calories + day.lunch.calories + day.dinner.calories} kcal total
+                    </Text>
+                  </View>
+                  {[
+                    { m: day.breakfast, icon: '🌅', label: 'Breakfast' },
+                    { m: day.lunch, icon: '☀️', label: 'Lunch' },
+                    { m: day.dinner, icon: '🌙', label: 'Dinner' },
+                  ].map((row, j) => (
+                    <View key={j} style={{ padding: 14, borderTopWidth: j > 0 ? 1 : 0,
+                      borderTopColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Text style={{ fontSize: 18 }}>{row.icon}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.mutedForeground, fontSize: 10, fontWeight: '700',
+                            letterSpacing: 0.5 }}>{row.label.toUpperCase()}</Text>
+                          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 14, marginTop: 2 }}
+                            numberOfLines={1}>{row.m.name}</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ color: colors.secondary, fontWeight: '700', fontSize: 15 }}>
+                            {row.m.calories} kcal
+                          </Text>
+                          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                            {row.m.prepTime} min
+                          </Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))}
+                  ))}
+                </View>
+              ))
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 24 }}>
+                <Text style={{ fontSize: 52, marginBottom: 16 }}>🍽️</Text>
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: 10 }}>
+                  No meal plan yet
+                </Text>
+                <Text style={{ color: colors.mutedForeground, textAlign: 'center', lineHeight: 22, fontSize: 15 }}>
+                  Generate a personalised 7-day South African meal plan based on your budget and preferences.
+                </Text>
               </View>
-            ))
-          ) : (
-            <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: 52, marginBottom: 16 }}>🍽️</Text>
-              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: 10 }}>
-                No meal plan yet
-              </Text>
-              <Text style={{ color: colors.mutedForeground, textAlign: 'center', lineHeight: 22, fontSize: 15 }}>
-                Generate a personalised 7-day South African meal plan based on your budget and preferences.
-              </Text>
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
+        )
       )}
 
       {/* ── GROCERY TAB ── */}
       {activeTab === 'grocery' && (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: btmPad }}
-          showsVerticalScrollIndicator={false}>
-          {groceryList.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 24 }}>
-              <Text style={{ fontSize: 52, marginBottom: 16 }}>🛒</Text>
-              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: 10 }}>
-                No grocery list
-              </Text>
-              <Text style={{ color: colors.mutedForeground, textAlign: 'center', lineHeight: 22, fontSize: 15 }}>
-                Generate a meal plan first and your grocery list will be created automatically from it.
-              </Text>
-              <TouchableOpacity onPress={() => setActiveTab('plan')}
-                style={{ marginTop: 24, backgroundColor: colors.primary,
-                  borderRadius: 30, paddingHorizontal: 28, paddingVertical: 14 }}>
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Go to Plan</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between',
-                alignItems: 'center', marginBottom: 16 }}>
-                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 18 }}>
-                  {checkedCount}/{groceryList.length} items
+        !isPro ? (
+          <ProLockCard
+            title="Smart Grocery List"
+            description={"Auto-generate a weekly grocery list from your meal plan, grouped by section with estimated ZAR pricing. Tick items off as you shop."}
+            cta="Unlock Grocery List"
+          />
+        ) : (
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: btmPad }}
+            showsVerticalScrollIndicator={false}>
+            {groceryList.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 24 }}>
+                <Text style={{ fontSize: 52, marginBottom: 16 }}>🛒</Text>
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: 10 }}>
+                  No grocery list
                 </Text>
-                <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 17 }}>
-                  ~R{totalCost}
+                <Text style={{ color: colors.mutedForeground, textAlign: 'center', lineHeight: 22, fontSize: 15 }}>
+                  Generate a meal plan first and your grocery list will be created automatically from it.
                 </Text>
+                <TouchableOpacity onPress={() => setActiveTab('plan')}
+                  style={{ marginTop: 24, backgroundColor: colors.primary,
+                    borderRadius: 30, paddingHorizontal: 28, paddingVertical: 14 }}>
+                  <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Go to Plan</Text>
+                </TouchableOpacity>
               </View>
-
-              {Object.entries(sections).map(([section, items]) => (
-                <View key={section} style={{ marginBottom: 20 }}>
-                  <Text style={{ color: colors.mutedForeground, fontWeight: '700', fontSize: 11,
-                    letterSpacing: 1, marginBottom: 8 }}>{section.toUpperCase()}</Text>
-                  {items.map(item => (
-                    <TouchableOpacity key={item.id}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleGroceryItem(item.id); }}
-                      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card,
-                        borderRadius: 10, padding: 14, marginBottom: 6, gap: 12 }}>
-                      <View style={{ width: 22, height: 22, borderRadius: 6,
-                        borderWidth: 2, borderColor: item.checked ? colors.primary : colors.border,
-                        backgroundColor: item.checked ? colors.primary : 'transparent',
-                        alignItems: 'center', justifyContent: 'center' }}>
-                        {item.checked && <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>✓</Text>}
-                      </View>
-                      <Text style={{ flex: 1, fontSize: 15, fontWeight: '500',
-                        color: item.checked ? colors.mutedForeground : colors.text,
-                        textDecorationLine: item.checked ? 'line-through' : 'none' }}>
-                        {item.name}
-                      </Text>
-                      <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-                        ~R{item.estimatedPrice}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between',
+                  alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={{ color: colors.text, fontWeight: '700', fontSize: 18 }}>
+                    {checkedCount}/{groceryList.length} items
+                  </Text>
+                  <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 17 }}>
+                    ~R{totalCost}
+                  </Text>
                 </View>
-              ))}
-            </>
-          )}
-        </ScrollView>
+
+                {Object.entries(sections).map(([section, items]) => (
+                  <View key={section} style={{ marginBottom: 20 }}>
+                    <Text style={{ color: colors.mutedForeground, fontWeight: '700', fontSize: 11,
+                      letterSpacing: 1, marginBottom: 8 }}>{section.toUpperCase()}</Text>
+                    {items.map(item => (
+                      <TouchableOpacity key={item.id}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleGroceryItem(item.id); }}
+                        style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card,
+                          borderRadius: 10, padding: 14, marginBottom: 6, gap: 12 }}>
+                        <View style={{ width: 22, height: 22, borderRadius: 6,
+                          borderWidth: 2, borderColor: item.checked ? colors.primary : colors.border,
+                          backgroundColor: item.checked ? colors.primary : 'transparent',
+                          alignItems: 'center', justifyContent: 'center' }}>
+                          {item.checked && <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>✓</Text>}
+                        </View>
+                        <Text style={{ flex: 1, fontSize: 15, fontWeight: '500',
+                          color: item.checked ? colors.mutedForeground : colors.text,
+                          textDecorationLine: item.checked ? 'line-through' : 'none' }}>
+                          {item.name}
+                        </Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                          ~R{item.estimatedPrice}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ))}
+              </>
+            )}
+          </ScrollView>
+        )
       )}
 
       {/* Food Search Modal */}

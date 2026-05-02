@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useColors } from '@/hooks/useColors';
+import { useApp } from '@/context/AppContext';
 import { healthSpots } from '@/data/healthSpots';
 
 function StarRating({ rating }: { rating: number }) {
@@ -23,9 +24,11 @@ export default function SpotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { profile } = useApp();
 
   const spot = healthSpots.find(s => s.id === id);
   const btmPad = Platform.OS === 'web' ? 34 : insets.bottom + 16;
+  const isPro = profile?.isPro ?? false;
 
   if (!spot) {
     return (
@@ -39,6 +42,7 @@ export default function SpotDetailScreen() {
   }
 
   function openDirections() {
+    if (!isPro) { router.push('/pro'); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const query = encodeURIComponent(`${spot!.name}, ${spot!.address}`);
     const url = Platform.OS === 'ios'
@@ -54,6 +58,7 @@ export default function SpotDetailScreen() {
 
   function callSpot() {
     if (!spot?.phone) return;
+    if (!isPro) { router.push('/pro'); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Linking.openURL(`tel:${spot.phone}`);
   }
@@ -61,7 +66,7 @@ export default function SpotDetailScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: btmPad + 100 }}>
+        contentContainerStyle={{ paddingBottom: btmPad + 160 }}>
 
         {/* Hero banner */}
         <View style={{ backgroundColor: colors.secondary, padding: 24, paddingTop: 20 }}>
@@ -89,7 +94,7 @@ export default function SpotDetailScreen() {
                 style={{ flex: 1, backgroundColor: colors.card, borderRadius: 12, padding: 12,
                   alignItems: 'center', gap: 5,
                   shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
-                <Feather name={item.icon as any} size={16} color={colors.secondary} />
+                <Feather name={item.icon as React.ComponentProps<typeof Feather>['name']} size={16} color={colors.secondary} />
                 <Text style={{ color: colors.text, fontSize: 12, fontWeight: '600', textAlign: 'center' }}
                   numberOfLines={2}>{item.text}</Text>
               </View>
@@ -121,18 +126,24 @@ export default function SpotDetailScreen() {
               marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
               <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: '700',
                 letterSpacing: 0.8, marginBottom: 10 }}>CONTACT</Text>
-              <TouchableOpacity onPress={callSpot}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Feather name="phone" size={18} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontSize: 15, fontWeight: '600' }}>{spot.phone}</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Feather name="phone" size={18} color={isPro ? colors.primary : colors.border} />
+                <Text style={{ color: isPro ? colors.primary : colors.mutedForeground, fontSize: 15, fontWeight: '600' }}>
+                  {isPro ? spot.phone : '*** *** ****'}
+                </Text>
+                {!isPro && (
+                  <View style={{ backgroundColor: colors.secondary + '18', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                    <Text style={{ color: colors.secondary, fontSize: 10, fontWeight: '800' }}>PRO</Text>
+                  </View>
+                )}
+              </View>
             </View>
           )}
 
           {/* Tags */}
           {spot.tags && spot.tags.length > 0 && (
             <View style={{ backgroundColor: colors.card, borderRadius: colors.radius, padding: 16,
-              shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
+              marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
               <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: '700',
                 letterSpacing: 0.8, marginBottom: 12 }}>SPECIALTIES</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -146,6 +157,30 @@ export default function SpotDetailScreen() {
               </View>
             </View>
           )}
+
+          {/* Pro upsell banner for free users */}
+          {!isPro && (
+            <TouchableOpacity
+              onPress={() => router.push('/pro')}
+              style={{ backgroundColor: colors.secondary + '12', borderRadius: colors.radius,
+                padding: 16, borderWidth: 1, borderColor: colors.secondary + '30',
+                flexDirection: 'row', alignItems: 'center', gap: 14 }}
+            >
+              <View style={{ width: 40, height: 40, borderRadius: 20,
+                backgroundColor: colors.secondary + '20', alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="lock" size={18} color={colors.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.secondary, fontWeight: '700', fontSize: 14 }}>
+                  Unlock directions & contact
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
+                  Pro members can get directions and call spots directly.
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.secondary} />
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -153,19 +188,33 @@ export default function SpotDetailScreen() {
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0,
         backgroundColor: colors.background, padding: 20, paddingBottom: btmPad + 12,
         borderTopWidth: 1, borderTopColor: colors.border, gap: 10 }}>
-        <TouchableOpacity onPress={openDirections}
-          style={{ backgroundColor: colors.secondary, borderRadius: 50, paddingVertical: 16,
-            alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-          <Feather name="navigation" size={18} color="#FFF" />
-          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Get Directions</Text>
+        <TouchableOpacity
+          onPress={openDirections}
+          style={{
+            backgroundColor: isPro ? colors.secondary : colors.muted,
+            borderRadius: 50, paddingVertical: 16,
+            alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+          }}
+        >
+          <Feather name={isPro ? 'navigation' : 'lock'} size={18} color={isPro ? '#FFF' : colors.mutedForeground} />
+          <Text style={{ color: isPro ? '#FFF' : colors.mutedForeground, fontSize: 16, fontWeight: '700' }}>
+            {isPro ? 'Get Directions' : 'Directions — Pro only'}
+          </Text>
         </TouchableOpacity>
         {spot.phone && (
-          <TouchableOpacity onPress={callSpot}
-            style={{ backgroundColor: colors.card, borderRadius: 50, paddingVertical: 14,
+          <TouchableOpacity
+            onPress={callSpot}
+            style={{
+              backgroundColor: colors.card, borderRadius: 50, paddingVertical: 14,
               alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
-              borderWidth: 1, borderColor: colors.border }}>
-            <Feather name="phone" size={16} color={colors.text} />
-            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>Call Now</Text>
+              borderWidth: 1, borderColor: isPro ? colors.border : colors.border,
+              opacity: isPro ? 1 : 0.6,
+            }}
+          >
+            <Feather name={isPro ? 'phone' : 'lock'} size={16} color={colors.text} />
+            <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>
+              {isPro ? 'Call Now' : 'Call — Pro only'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>

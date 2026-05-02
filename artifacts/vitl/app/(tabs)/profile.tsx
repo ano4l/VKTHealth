@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
@@ -39,6 +41,22 @@ const ACHIEVEMENTS = [
   { key: 'explorer', icon: '🗺️', title: 'Explorer', desc: 'Check out a health spot' },
 ];
 
+function ProFeatureLock({ label, onPress }: { label: string; onPress: () => void }) {
+  const colors = useColors();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 8,
+        backgroundColor: colors.secondary + '12',
+        paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20,
+        borderWidth: 1, borderColor: colors.secondary + '30' }}
+    >
+      <Feather name="lock" size={12} color={colors.secondary} />
+      <Text style={{ color: colors.secondary, fontSize: 12, fontWeight: '700' }}>{label} — Pro</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -46,6 +64,7 @@ export default function ProfileScreen() {
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const btmPad = Platform.OS === 'web' ? 100 : insets.bottom + 80;
+  const isPro = profile?.isPro ?? false;
 
   const avgCalories = useMemo(() => {
     if (!diary || diary.length === 0) return 0;
@@ -54,9 +73,10 @@ export default function ProfileScreen() {
   }, [diary]);
 
   const upcomingClasses = bookings.filter(b => b.status === 'upcoming').length;
+  const totalDaysLogged = diary.filter(d => d.entries.length > 0).length;
 
   const weightData = useMemo(() => {
-    if (profile && profile.weightHistory.length > 1) return profile.weightHistory.slice(-8);
+    if (profile && profile.weightHistory && profile.weightHistory.length > 1) return profile.weightHistory.slice(-8);
     const base = profile?.weight ?? 70;
     const today = new Date();
     return Array.from({ length: 7 }, (_, i) => {
@@ -71,7 +91,7 @@ export default function ProfileScreen() {
   const minW = Math.min(...weightData.map(d => d.weight));
   const wRange = maxW - minW || 1;
 
-  const achievements = {
+  const achievementStatus = {
     first_log: diary.some(d => d.entries.length > 0),
     hydrated: diary.some(d => d.waterGlasses >= (profile?.waterGoal ?? 8)),
     streak7: (profile?.streak ?? 0) >= 7,
@@ -93,9 +113,30 @@ export default function ProfileScreen() {
       contentContainerStyle={{ paddingBottom: btmPad }} showsVerticalScrollIndicator={false}>
 
       {/* Profile Header */}
-      <View style={{ paddingTop: topPad + 16, paddingHorizontal: 20, paddingBottom: 28,
-        backgroundColor: colors.primary }}>
-        <Text style={{ fontSize: 22, fontWeight: '800', color: '#FFF', marginBottom: 20 }}>Profile</Text>
+      <LinearGradient
+        colors={[colors.primary, '#1A4D38']}
+        style={{ paddingTop: topPad + 16, paddingHorizontal: 20, paddingBottom: 28 }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: '#FFF' }}>Profile</Text>
+          {isPro ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 }}>
+              <Text style={{ fontSize: 12 }}>⭐</Text>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>PRO</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => router.push('/pro')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6,
+                backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+                borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
+            >
+              <Feather name="star" size={13} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Upgrade to Pro</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
           <View style={{ width: 72, height: 72, borderRadius: 36,
             backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center',
@@ -114,14 +155,14 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Stats Cards */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12 }}>
         {[
-          { label: 'Streak', value: `${profile.streak} days`, icon: 'zap' as const, color: '#F59E0B' },
+          { label: 'Streak', value: `${profile.streak ?? 0} days`, icon: 'zap' as const, color: '#F59E0B' },
           { label: 'Daily Goal', value: `${profile.calorieGoal} kcal`, icon: 'target' as const, color: colors.primary },
-          { label: 'Avg Intake', value: avgCalories > 0 ? `${avgCalories} kcal` : 'No data', icon: 'bar-chart-2' as const, color: colors.secondary },
+          { label: 'Days Logged', value: totalDaysLogged > 0 ? `${totalDaysLogged} days` : 'No data', icon: 'bar-chart-2' as const, color: colors.secondary },
           { label: 'Classes', value: `${upcomingClasses} upcoming`, icon: 'calendar' as const, color: '#8B5CF6' },
         ].map(stat => (
           <View key={stat.label}
@@ -156,58 +197,112 @@ export default function ProfileScreen() {
 
       {/* Weight Trend Chart */}
       <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: colors.card,
-        borderRadius: colors.radius, padding: 16, shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+        borderRadius: colors.radius, overflow: 'hidden',
+        shadowColor: '#000', shadowOpacity: 0.04, elevation: 1 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+          padding: 16, paddingBottom: isPro ? 10 : 16 }}>
           <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>Weight Trend</Text>
-          <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 16 }}>
-            {profile.weight} kg
-          </Text>
+          {isPro
+            ? <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 16 }}>{profile.weight} kg</Text>
+            : <ProFeatureLock label="Weight Chart" onPress={() => router.push('/pro')} />
+          }
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 5 }}>
-          {weightData.map((d, i) => {
-            const h = Math.max(Math.round(((d.weight - minW) / wRange) * 60 + 10), 10);
-            const isLast = i === weightData.length - 1;
-            return (
-              <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
-                <View style={{ width: '100%', height: h, borderRadius: 4,
-                  backgroundColor: isLast ? colors.primary : colors.primary + '45' }} />
-                <Text style={{ color: colors.mutedForeground, fontSize: 8, marginTop: 4 }}>
-                  {d.date.slice(8)}
-                </Text>
+
+        {isPro ? (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 5 }}>
+              {weightData.map((d, i) => {
+                const h = Math.max(Math.round(((d.weight - minW) / wRange) * 60 + 10), 10);
+                const isLast = i === weightData.length - 1;
+                return (
+                  <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+                    <View style={{ width: '100%', height: h, borderRadius: 4,
+                      backgroundColor: isLast ? colors.primary : colors.primary + '45' }} />
+                    <Text style={{ color: colors.mutedForeground, fontSize: 8, marginTop: 4 }}>
+                      {d.date.slice(8)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 10, textAlign: 'center' }}>
+              Last 7 weigh-ins (kg)
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => router.push('/pro')} activeOpacity={0.85}>
+            {/* Blurred placeholder bars */}
+            <View style={{ paddingHorizontal: 16, paddingBottom: 16, opacity: 0.15 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 5 }}>
+                {[40, 55, 35, 65, 50, 70, 80].map((h, i) => (
+                  <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
+                    <View style={{ width: '100%', height: h, borderRadius: 4, backgroundColor: colors.primary }} />
+                  </View>
+                ))}
               </View>
-            );
-          })}
-        </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 10, textAlign: 'center' }}>
-          Last 7 weigh-ins (kg)
-        </Text>
+            </View>
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Feather name="lock" size={22} color={colors.secondary} />
+              <Text style={{ color: colors.secondary, fontSize: 13, fontWeight: '700' }}>
+                Upgrade to see your trend
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Achievements */}
       <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
-        <Text style={{ fontWeight: '700', fontSize: 18, color: colors.text, marginBottom: 14 }}>
-          Achievements
-        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <Text style={{ fontWeight: '700', fontSize: 18, color: colors.text }}>Achievements</Text>
+          {!isPro && <ProFeatureLock label="Unlock" onPress={() => router.push('/pro')} />}
+        </View>
+
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {ACHIEVEMENTS.map(a => {
-            const unlocked = achievements[a.key as keyof typeof achievements] === true;
+            const unlocked = isPro && achievementStatus[a.key as keyof typeof achievementStatus] === true;
+            const earned = isPro ? unlocked : false;
             return (
-              <View key={a.key}
-                style={{ width: '30%', backgroundColor: unlocked ? colors.primary + '15' : colors.muted,
+              <TouchableOpacity
+                key={a.key}
+                onPress={() => !isPro && router.push('/pro')}
+                style={{ width: '30%', backgroundColor: earned ? colors.primary + '15' : colors.muted,
                   borderRadius: 14, padding: 12, alignItems: 'center',
-                  borderWidth: 1.5, borderColor: unlocked ? colors.primary + '60' : 'transparent' }}>
-                <Text style={{ fontSize: 26, marginBottom: 6, opacity: unlocked ? 1 : 0.3 }}>
+                  borderWidth: 1.5, borderColor: earned ? colors.primary + '60' : 'transparent' }}
+              >
+                <Text style={{ fontSize: 26, marginBottom: 6, opacity: isPro ? (unlocked ? 1 : 0.35) : 0.2 }}>
                   {a.icon}
                 </Text>
-                <Text style={{ color: unlocked ? colors.primary : colors.mutedForeground,
+                <Text style={{ color: earned ? colors.primary : colors.mutedForeground,
                   fontWeight: '700', fontSize: 11, textAlign: 'center' }}>{a.title}</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 9, textAlign: 'center', marginTop: 2 }}>
-                  {a.desc}
+                  {isPro ? a.desc : '🔒 Pro'}
                 </Text>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
+
+        {!isPro && (
+          <TouchableOpacity
+            onPress={() => router.push('/pro')}
+            style={{ marginTop: 14, backgroundColor: colors.secondary + '12', borderRadius: 12,
+              padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12,
+              borderWidth: 1, borderColor: colors.secondary + '30' }}
+          >
+            <Feather name="award" size={20} color={colors.secondary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.secondary, fontWeight: '700', fontSize: 14 }}>
+                Unlock your achievements
+              </Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
+                Track milestones and celebrate your progress with Pro.
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.secondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Dietary Info */}
