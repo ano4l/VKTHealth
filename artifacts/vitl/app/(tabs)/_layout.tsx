@@ -9,16 +9,28 @@ import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
-// IMPORTANT: iOS 26 uses NativeTabs for native tabs with liquid glass support.
-// NativeTabs intentionally does NOT use custom design tokens — liquid glass
-// is a system-level appearance provided by iOS and cannot be overridden.
-// Custom brand colors are applied only on the ClassicTabLayout path (older iOS / Android / web).
 function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Home</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="fitness">
+        <Icon sf={{ default: "figure.run", selected: "figure.run" }} />
+        <Label>Fitness</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="discover">
+        <Icon sf={{ default: "mappin.and.ellipse", selected: "mappin.and.ellipse" }} />
+        <Label>Discover</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="nutrition">
+        <Icon sf={{ default: "fork.knife", selected: "fork.knife" }} />
+        <Label>Nutrition</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person", selected: "person.fill" }} />
+        <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -36,7 +48,7 @@ function ClassicTabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
-        headerShown: true,
+        headerShown: false,
         tabBarStyle: {
           position: "absolute",
           backgroundColor: isIOS ? "transparent" : colors.background,
@@ -53,13 +65,9 @@ function ClassicTabLayout() {
               style={StyleSheet.absoluteFill}
             />
           ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
       }}
     >
       <Tabs.Screen
@@ -71,6 +79,54 @@ function ClassicTabLayout() {
               <SymbolView name="house" tintColor={color} size={24} />
             ) : (
               <Feather name="home" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="fitness"
+        options={{
+          title: "Fitness",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="figure.run" tintColor={color} size={24} />
+            ) : (
+              <Feather name="activity" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="discover"
+        options={{
+          title: "Discover",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="mappin.and.ellipse" tintColor={color} size={24} />
+            ) : (
+              <Feather name="map-pin" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="nutrition"
+        options={{
+          title: "Nutrition",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="fork.knife" tintColor={color} size={24} />
+            ) : (
+              <Feather name="clipboard" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person" tintColor={color} size={24} />
+            ) : (
+              <Feather name="user" size={22} color={color} />
             ),
         }}
       />

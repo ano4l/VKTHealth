@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "wYL9z3OCMwFEg2Of5vrYI"
+uri = "file://artifacts/vitl/assets/images/icon.png"
+type = "image"
+title = "vela app icon"
