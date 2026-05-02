@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, FlatList, Platform
@@ -13,6 +13,7 @@ import { useApp, type FoodEntry } from '@/context/AppContext';
 import { foodDatabase, type FoodItem } from '@/data/foodDatabase';
 import { generateMealPlan, BUDGET_OPTIONS } from '@/data/mealTemplates';
 
+type ModalSection = 'search' | 'recent' | 'favourites';
 type SubTab = 'diary' | 'plan' | 'grocery';
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snacks';
 
@@ -24,6 +25,41 @@ const MEALS: { key: MealType; label: string; icon: string }[] = [
 ];
 
 const FREE_DIARY_LIMIT = 5;
+
+function FoodRow({
+  item, onAdd, isFav, onToggleFav, colors,
+}: {
+  item: FoodItem;
+  onAdd: (food: FoodItem) => void;
+  isFav: boolean;
+  onToggleFav: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center',
+      paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 10 }}>
+      <TouchableOpacity onPress={onToggleFav}
+        style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}>
+        <Feather name="star" size={18} color={isFav ? '#F59E0B' : colors.border}
+          style={{ opacity: isFav ? 1 : 0.6 }} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => onAdd(item)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flex: 1, marginRight: 10 }}>
+          <Text style={{ color: colors.text, fontWeight: '600', fontSize: 15 }}>{item.name}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
+            {item.servingName} · P {item.protein}g · C {item.carbs}g · F {item.fat}g
+          </Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={{ color: colors.secondary, fontWeight: '800', fontSize: 18 }}>
+            {Math.round(item.calories * item.servingSize / 100)}
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>kcal</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 function ProLockCard({ title, description, cta }: { title: string; description: string; cta: string }) {
   const colors = useColors();
@@ -61,8 +97,9 @@ export default function NutritionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const {
-    profile, getTodayDiary, addFoodEntry, removeFoodEntry,
+    profile, diary: allDiary, getTodayDiary, addFoodEntry, removeFoodEntry,
     mealPlan, setMealPlan, generateGroceryList, groceryList, toggleGroceryItem,
+    favouriteFoods, toggleFavouriteFood,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<SubTab>('diary');
@@ -70,6 +107,7 @@ export default function NutritionScreen() {
   const [activeMeal, setActiveMeal] = useState<MealType>('breakfast');
   const [foodSearch, setFoodSearch] = useState('');
   const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [modalSection, setModalSection] = useState<ModalSection>('search');
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const btmPad = Platform.OS === 'web' ? 100 : insets.bottom + 80;
@@ -85,9 +123,32 @@ export default function NutritionScreen() {
   const totalCarbs = Math.round(diary.entries.reduce((s, e) => s + e.carbs, 0));
   const totalFat = Math.round(diary.entries.reduce((s, e) => s + e.fat, 0));
 
-  const filteredFoods = foodSearch.trim()
-    ? foodDatabase.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).slice(0, 40)
-    : foodDatabase.slice(0, 40);
+  const filteredFoods = useMemo(() =>
+    foodSearch.trim()
+      ? foodDatabase.filter(f => f.name.toLowerCase().includes(foodSearch.toLowerCase())).slice(0, 50)
+      : foodDatabase.slice(0, 50)
+  , [foodSearch]);
+
+  const recentFoods = useMemo(() => {
+    const seen = new Set<string>();
+    const recent: FoodItem[] = [];
+    const allEntries = allDiary
+      .slice().sort((a, b) => b.date.localeCompare(a.date))
+      .flatMap(d => d.entries);
+    for (const entry of allEntries) {
+      if (recent.length >= 10) break;
+      if (!seen.has(entry.name)) {
+        seen.add(entry.name);
+        const food = foodDatabase.find(f => f.name === entry.name);
+        if (food) recent.push(food);
+      }
+    }
+    return recent;
+  }, [allDiary]);
+
+  const favouriteFoodItems = useMemo(() =>
+    foodDatabase.filter(f => favouriteFoods.includes(f.id))
+  , [favouriteFoods]);
 
   function addFood(food: FoodItem) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -102,6 +163,7 @@ export default function NutritionScreen() {
       servingSize: food.servingSize,
       meal: activeMeal,
       date: today,
+      foodDatabaseId: food.id,
     };
     addFoodEntry(entry, today);
     setShowFoodModal(false);
@@ -114,6 +176,7 @@ export default function NutritionScreen() {
       return;
     }
     setActiveMeal(meal);
+    setModalSection(recentFoods.length > 0 ? 'recent' : 'search');
     setShowFoodModal(true);
   }
 
@@ -476,50 +539,124 @@ export default function NutritionScreen() {
       {/* Food Search Modal */}
       <Modal visible={showFoodModal} animationType="slide" presentationStyle="pageSheet">
         <View style={{ flex: 1, backgroundColor: colors.background }}>
+          {/* Header */}
           <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border,
             flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center',
               backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12,
               paddingVertical: 10, gap: 8, borderWidth: 1, borderColor: colors.border }}>
               <Feather name="search" size={16} color={colors.mutedForeground} />
-              <TextInput value={foodSearch} onChangeText={setFoodSearch}
+              <TextInput value={foodSearch} onChangeText={v => { setFoodSearch(v); if (v.trim()) setModalSection('search'); }}
                 placeholder="Search SA foods..."
                 placeholderTextColor={colors.mutedForeground}
-                style={{ flex: 1, color: colors.text, fontSize: 15 }}
-                autoFocus />
+                style={{ flex: 1, color: colors.text, fontSize: 15 }} />
             </View>
             <TouchableOpacity onPress={() => { setShowFoodModal(false); setFoodSearch(''); }}>
               <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 15 }}>Cancel</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={{ paddingHorizontal: 16, paddingVertical: 10,
+          {/* Meal label */}
+          <View style={{ paddingHorizontal: 16, paddingVertical: 8,
             backgroundColor: colors.primary + '10', borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}>
               Adding to: {activeMeal.charAt(0).toUpperCase() + activeMeal.slice(1)}
             </Text>
           </View>
 
-          <FlatList data={filteredFoods} keyExtractor={item => item.id}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => addFood(item)}
-                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                  paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                <View style={{ flex: 1, marginRight: 12 }}>
-                  <Text style={{ color: colors.text, fontWeight: '600', fontSize: 15 }}>{item.name}</Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 2 }}>
-                    {item.servingName} · P {item.protein}g · C {item.carbs}g · F {item.fat}g
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: colors.secondary, fontWeight: '800', fontSize: 18 }}>
-                    {Math.round(item.calories * item.servingSize / 100)}
-                  </Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>kcal</Text>
-                </View>
+          {/* Section tabs */}
+          <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border,
+            backgroundColor: colors.background }}>
+            {([
+              { key: 'recent', label: 'Recent', icon: 'clock' },
+              { key: 'favourites', label: 'Saved', icon: 'star' },
+              { key: 'search', label: 'All Foods', icon: 'list' },
+            ] as { key: ModalSection; label: string; icon: string }[]).map(tab => (
+              <TouchableOpacity key={tab.key}
+                onPress={() => { setModalSection(tab.key); setFoodSearch(''); }}
+                style={{ flex: 1, paddingVertical: 12, alignItems: 'center', gap: 3,
+                  borderBottomWidth: 2,
+                  borderBottomColor: modalSection === tab.key ? colors.primary : 'transparent' }}>
+                <Feather name={tab.icon as any} size={14}
+                  color={modalSection === tab.key ? colors.primary : colors.mutedForeground} />
+                <Text style={{ fontSize: 11, fontWeight: '700',
+                  color: modalSection === tab.key ? colors.primary : colors.mutedForeground }}>
+                  {tab.label}
+                  {tab.key === 'recent' && recentFoods.length > 0 && ` (${recentFoods.length})`}
+                  {tab.key === 'favourites' && favouriteFoodItems.length > 0 && ` (${favouriteFoodItems.length})`}
+                </Text>
               </TouchableOpacity>
-            )} />
+            ))}
+          </View>
+
+          {/* Recent section */}
+          {modalSection === 'recent' && (
+            recentFoods.length === 0 ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+                <Text style={{ fontSize: 40, marginBottom: 14 }}>🕐</Text>
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 18, marginBottom: 8 }}>No recent foods</Text>
+                <Text style={{ color: colors.mutedForeground, textAlign: 'center', fontSize: 14 }}>
+                  Foods you log will appear here for quick re-adding.
+                </Text>
+              </View>
+            ) : (
+              <FlatList data={recentFoods} keyExtractor={item => item.id}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, paddingTop: 8 }}
+                ListHeaderComponent={
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: '700',
+                    letterSpacing: 0.8, marginBottom: 8, marginTop: 4 }}>RECENTLY LOGGED</Text>
+                }
+                renderItem={({ item }) => (
+                  <FoodRow item={item} onAdd={addFood}
+                    isFav={favouriteFoods.includes(item.id)}
+                    onToggleFav={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleFavouriteFood(item.id); }}
+                    colors={colors} />
+                )} />
+            )
+          )}
+
+          {/* Favourites section */}
+          {modalSection === 'favourites' && (
+            favouriteFoodItems.length === 0 ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+                <Text style={{ fontSize: 40, marginBottom: 14 }}>⭐</Text>
+                <Text style={{ color: colors.text, fontWeight: '700', fontSize: 18, marginBottom: 8 }}>No saved foods</Text>
+                <Text style={{ color: colors.mutedForeground, textAlign: 'center', fontSize: 14 }}>
+                  Tap the star icon on any food in Search to save it here for quick access.
+                </Text>
+                <TouchableOpacity onPress={() => setModalSection('search')}
+                  style={{ marginTop: 18, backgroundColor: colors.primary + '15', borderRadius: 20,
+                    paddingHorizontal: 20, paddingVertical: 10 }}>
+                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>Browse All Foods</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <FlatList data={favouriteFoodItems} keyExtractor={item => item.id}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, paddingTop: 8 }}
+                ListHeaderComponent={
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, fontWeight: '700',
+                    letterSpacing: 0.8, marginBottom: 8, marginTop: 4 }}>SAVED FOODS</Text>
+                }
+                renderItem={({ item }) => (
+                  <FoodRow item={item} onAdd={addFood}
+                    isFav={true}
+                    onToggleFav={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleFavouriteFood(item.id); }}
+                    colors={colors} />
+                )} />
+            )
+          )}
+
+          {/* All foods / search */}
+          {modalSection === 'search' && (
+            <FlatList data={filteredFoods} keyExtractor={item => item.id}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, paddingTop: 8 }}
+              renderItem={({ item }) => (
+                <FoodRow item={item} onAdd={addFood}
+                  isFav={favouriteFoods.includes(item.id)}
+                  onToggleFav={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleFavouriteFood(item.id); }}
+                  colors={colors} />
+              )} />
+          )}
         </View>
       </Modal>
 

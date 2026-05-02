@@ -17,6 +17,10 @@ export interface UserProfile {
   lastActiveDate: string;
   weightHistory: { date: string; weight: number }[];
   isPro: boolean;
+  macroTargets?: { protein: number; carbs: number; fat: number };
+  waist?: number;
+  hip?: number;
+  chest?: number;
 }
 
 export interface FoodEntry {
@@ -29,6 +33,7 @@ export interface FoodEntry {
   meal: 'breakfast' | 'lunch' | 'dinner' | 'snacks';
   servingSize: number;
   date: string;
+  foodDatabaseId?: string;
 }
 
 export interface DiaryDay {
@@ -67,12 +72,20 @@ export interface GroceryItem {
   checked: boolean;
 }
 
+export interface MoodEntry {
+  date: string;
+  mood: number;
+  energy: number;
+}
+
 interface AppContextType {
   profile: UserProfile | null;
   diary: DiaryDay[];
   bookings: ClassBooking[];
   mealPlan: MealPlanDay[] | null;
   groceryList: GroceryItem[];
+  favouriteFoods: string[];
+  moodLog: MoodEntry[];
   isLoaded: boolean;
   updateProfile: (p: Partial<UserProfile>) => void;
   completeOnboarding: (p: UserProfile) => void;
@@ -80,12 +93,16 @@ interface AppContextType {
   addFoodEntry: (entry: FoodEntry, date: string) => void;
   removeFoodEntry: (entryId: string, date: string) => void;
   setWater: (date: string, glasses: number) => void;
+  setSteps: (date: string, steps: number) => void;
   getTodayDiary: () => DiaryDay;
   addBooking: (b: ClassBooking) => void;
   cancelBooking: (id: string) => void;
   setMealPlan: (plan: MealPlanDay[]) => void;
   generateGroceryList: (plan: MealPlanDay[]) => void;
   toggleGroceryItem: (id: string) => void;
+  toggleFavouriteFood: (foodId: string) => void;
+  logMood: (date: string, mood: number, energy: number) => void;
+  getTodayMood: () => MoodEntry | null;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -100,23 +117,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bookings, setBookings] = useState<ClassBooking[]>([]);
   const [mealPlan, setMealPlanState] = useState<MealPlanDay[] | null>(null);
   const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
+  const [favouriteFoods, setFavouriteFoods] = useState<string[]>([]);
+  const [moodLog, setMoodLog] = useState<MoodEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const [p, d, b, m, g] = await Promise.all([
+        const [p, d, b, m, g, f, ml] = await Promise.all([
           AsyncStorage.getItem('vela_profile'),
           AsyncStorage.getItem('vela_diary'),
           AsyncStorage.getItem('vela_bookings'),
           AsyncStorage.getItem('vela_mealplan'),
           AsyncStorage.getItem('vela_grocery'),
+          AsyncStorage.getItem('vela_favourites'),
+          AsyncStorage.getItem('vela_moodlog'),
         ]);
         if (p) setProfile(JSON.parse(p));
         if (d) setDiary(JSON.parse(d));
         if (b) setBookings(JSON.parse(b));
         if (m) setMealPlanState(JSON.parse(m));
         if (g) setGroceryList(JSON.parse(g));
+        if (f) setFavouriteFoods(JSON.parse(f));
+        if (ml) setMoodLog(JSON.parse(ml));
       } catch {}
       setIsLoaded(true);
     })();
@@ -193,6 +216,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [save]);
 
+  const setSteps = useCallback((date: string, steps: number) => {
+    setDiary(prev => {
+      const existing = prev.find(d => d.date === date);
+      let next: DiaryDay[];
+      if (existing) {
+        next = prev.map(d => d.date === date ? { ...d, steps } : d);
+      } else {
+        next = [...prev, { date, waterGlasses: 0, steps, activeMinutes: 0, entries: [] }];
+      }
+      save('vela_diary', next);
+      return next;
+    });
+  }, [save]);
+
   const addBooking = useCallback((b: ClassBooking) => {
     setBookings(prev => {
       const next = [...prev, b];
@@ -262,12 +299,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [save]);
 
+  const toggleFavouriteFood = useCallback((foodId: string) => {
+    setFavouriteFoods(prev => {
+      const next = prev.includes(foodId)
+        ? prev.filter(id => id !== foodId)
+        : [...prev, foodId];
+      save('vela_favourites', next);
+      return next;
+    });
+  }, [save]);
+
+  const logMood = useCallback((date: string, mood: number, energy: number) => {
+    setMoodLog(prev => {
+      const next = [
+        ...prev.filter(m => m.date !== date),
+        { date, mood, energy },
+      ];
+      save('vela_moodlog', next);
+      return next;
+    });
+  }, [save]);
+
+  const getTodayMood = useCallback((): MoodEntry | null => {
+    const today = todayStr();
+    return moodLog.find(m => m.date === today) ?? null;
+  }, [moodLog]);
+
   return (
     <AppContext.Provider value={{
-      profile, diary, bookings, mealPlan, groceryList, isLoaded,
-      updateProfile, completeOnboarding, unlockPro, addFoodEntry, removeFoodEntry,
-      setWater, getTodayDiary, addBooking, cancelBooking,
+      profile, diary, bookings, mealPlan, groceryList,
+      favouriteFoods, moodLog, isLoaded,
+      updateProfile, completeOnboarding, unlockPro,
+      addFoodEntry, removeFoodEntry, setWater, setSteps,
+      getTodayDiary, addBooking, cancelBooking,
       setMealPlan, generateGroceryList, toggleGroceryItem,
+      toggleFavouriteFood, logMood, getTodayMood,
     }}>
       {children}
     </AppContext.Provider>

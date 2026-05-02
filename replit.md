@@ -34,30 +34,62 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 A South African health and wellness mobile app with earthy green (#2D6A4F) + terracotta (#C8714B) palette, full dark mode support.
 
-### Features
+### Screens
 
 | Screen | Description |
 |---|---|
 | **Onboarding** | 6-step wizard: name, city, body metrics, goal, activity level, dietary preferences. Calculates personalised calorie goal. |
-| **Home Dashboard** | Greeting, streak counter, SVG calorie ring, macro progress bars (protein/carbs/fat), water tracker, nearby classes horizontal scroll, meal suggestion card. |
-| **Fitness** | 15 SA fitness classes across JHB/CT/Durban/Pretoria. Search + class type filter, spots remaining bar, booking flow. |
-| **Discover** | 15 SA health spots (restaurants, juice bars, trails, gyms, spas). Category filter, rating, directions via Maps. |
-| **Nutrition — Diary** | Food diary with breakfast/lunch/dinner/snacks. Add from 85-item SA food database. Macro summary bar. Water tracker. |
-| **Nutrition — Plan** | AI-generated 7-day SA meal plan with economy/standard/premium budget options. Shows name, calories, prep time per meal. |
-| **Nutrition — Grocery** | Auto-generated grocery list from meal plan, grouped by section (Meat, Dairy, Produce, etc.) with ZAR pricing and checkboxes. |
-| **Profile** | Avatar initials, body stats, streak and calorie stats, weight trend chart, 6 achievement badges. |
+| **Home Dashboard** | Greeting, streak + PRO badge, SVG calorie ring with %, macro bars (with custom targets), steps + water side-by-side, daily challenges (3 rotating, auto-evaluated), mood/energy check-in, weekly summary card, nearby classes carousel, daily SA quote. |
+| **Fitness** | 15 SA fitness classes across JHB/CT/Durban/Pretoria. Search + filter. Booking locked behind Pro. |
+| **Discover** | 15 SA health spots. Category filter, rating. Directions + call locked behind Pro. |
+| **Nutrition — Diary** | Food diary with breakfast/lunch/dinner/snacks. 5-entry free limit with live counter. Scan Meal button (Pro). |
+| **Nutrition — Plan** | AI 7-day SA meal plan. Economy/standard/premium budgets. Pro-gated. |
+| **Nutrition — Grocery** | Auto-generated grocery list from meal plan. ZAR pricing, section grouping, checkboxes. Pro-gated. |
+| **Food Modal** | 3-tab modal: Recent (last 10 logged foods), Saved (starred favourites ⭐), All Foods (full database search). Star button on every food item. |
+| **Profile** | Avatar, body stats, BMI gauge with colour-coded categories (Under/Healthy/Over/Obese), body measurements (waist/hip/chest) with edit modal, macro targets with customise modal, weight trend chart (Pro), 6 achievement badges (Pro). |
+| **Pro Paywall** | Feature comparison table, monthly/yearly price toggle, unlock demo. |
+| **Scanner** | Photo calorie scanner via camera/gallery. Calls /api/scan-meal (OpenAI vision). Pro only. |
+
+### Free vs Pro Gates
+
+| Feature | Free | Pro |
+|---|---|---|
+| Food diary | 5 entries/day | Unlimited |
+| Fitness booking | View only | Full booking |
+| Directions & call | Hidden | Unlocked |
+| Meal Planner tab | Locked | Full access |
+| Grocery List tab | Locked | Full access |
+| Weight trend chart | Blurred | Full chart |
+| Achievements | Dimmed | Unlocked |
+| Photo scanner | Locked | Full access |
 
 ### Data Files
 
 - `data/fitnessStudios.ts` — 15 fitness classes with full SA metadata
 - `data/healthSpots.ts` — 15 health spots across SA cities
 - `data/foodDatabase.ts` — 85 South African foods with full macros
-- `data/mealTemplates.ts` — Economy/standard meal templates, `generateMealPlan()`
+- `data/mealTemplates.ts` — Economy/standard meal templates, `generateMealPlan()`, `BUDGET_OPTIONS`
 
 ### Architecture
 
-- `context/AppContext.tsx` — Single global state: profile, diary, bookings, meal plan, grocery list. Persisted with AsyncStorage.
+- `context/AppContext.tsx` — Global state: profile, diary, bookings, meal plan, grocery list, favouriteFoods, moodLog. Persisted with AsyncStorage.
+  - Actions: `updateProfile`, `completeOnboarding`, `unlockPro`, `addFoodEntry`, `removeFoodEntry`, `setWater`, `setSteps`, `addBooking`, `cancelBooking`, `setMealPlan`, `generateGroceryList`, `toggleGroceryItem`, `toggleFavouriteFood`, `logMood`, `getTodayMood`
 - `constants/colors.ts` — Full light/dark VELA palette (green primary, terracotta secondary)
 - `hooks/useColors.ts` — Dark mode color hook
-- `app/_layout.tsx` — Root layout with AppProvider, Stack screens for onboarding + detail pages
-- `app/(tabs)/_layout.tsx` — 5-tab layout with NativeTabs (iOS 26) + ClassicTabLayout fallback
+- `app/_layout.tsx` — Root layout with AppProvider, Stack screens
+- `app/(tabs)/_layout.tsx` — 5-tab layout (Home, Fitness, Nutrition, Discover, Profile)
+
+### UserProfile Fields
+
+```typescript
+name, age, weight, height, goal, activityLevel, dietary, city,
+calorieGoal, waterGoal, onboardingComplete, streak, lastActiveDate,
+weightHistory, isPro,
+macroTargets?: { protein, carbs, fat },
+waist?, hip?, chest?
+```
+
+### API Server
+
+- `POST /api/scan-meal` — Accepts base64 image dataURL, calls OpenAI GPT vision, returns `{ items, totalCalories, confidence, notes }`. Body limit: 20mb.
+- Replit AI integrations: `AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY` set in environment.
