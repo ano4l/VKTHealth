@@ -34,6 +34,14 @@ function RootLayoutNav() {
           name="discover/[id]"
           options={{ title: "Health Spot", headerTintColor: "#2D6A4F" }}
         />
+        <Stack.Screen
+          name="scanner"
+          options={{ title: "Photo Scanner", headerTintColor: "#C8714B" }}
+        />
+        <Stack.Screen
+          name="pro"
+          options={{ headerShown: false }}
+        />
       </Stack>
     </AppProvider>
   );

@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 
 import { useColors } from '@/hooks/useColors';
 import { useApp, type FoodEntry } from '@/context/AppContext';
@@ -93,7 +94,34 @@ export default function NutritionScreen() {
       {/* Header */}
       <View style={{ paddingTop: topPad + 16, paddingHorizontal: 20, paddingBottom: 14,
         backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Text style={{ fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 14 }}>Nutrition</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: colors.text }}>Nutrition</Text>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              if (profile?.isPro) {
+                router.push('/scanner');
+              } else {
+                router.push('/pro');
+              }
+            }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 6,
+              backgroundColor: profile?.isPro ? colors.secondary + '18' : colors.secondary,
+              paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
+            }}
+          >
+            <Feather name="camera" size={15} color={profile?.isPro ? colors.secondary : '#fff'} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: profile?.isPro ? colors.secondary : '#fff' }}>
+              Scan Meal
+            </Text>
+            {!profile?.isPro && (
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
+                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>PRO</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
         <View style={{ flexDirection: 'row', backgroundColor: colors.muted,
           borderRadius: 12, padding: 3 }}>
           {(['diary', 'plan', 'grocery'] as SubTab[]).map(tab => (

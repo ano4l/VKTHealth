@@ -16,6 +16,7 @@ export interface UserProfile {
   streak: number;
   lastActiveDate: string;
   weightHistory: { date: string; weight: number }[];
+  isPro: boolean;
 }
 
 export interface FoodEntry {
@@ -75,6 +76,7 @@ interface AppContextType {
   isLoaded: boolean;
   updateProfile: (p: Partial<UserProfile>) => void;
   completeOnboarding: (p: UserProfile) => void;
+  unlockPro: () => void;
   addFoodEntry: (entry: FoodEntry, date: string) => void;
   removeFoodEntry: (entryId: string, date: string) => void;
   setWater: (date: string, glasses: number) => void;
@@ -136,6 +138,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const next = { ...p, onboardingComplete: true };
     setProfile(next);
     save('vela_profile', next);
+  }, [save]);
+
+  const unlockPro = useCallback(() => {
+    setProfile(prev => {
+      const next = { ...(prev ?? {} as UserProfile), isPro: true };
+      save('vela_profile', next);
+      return next;
+    });
   }, [save]);
 
   const getTodayDiary = useCallback((): DiaryDay => {
@@ -255,7 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{
       profile, diary, bookings, mealPlan, groceryList, isLoaded,
-      updateProfile, completeOnboarding, addFoodEntry, removeFoodEntry,
+      updateProfile, completeOnboarding, unlockPro, addFoodEntry, removeFoodEntry,
       setWater, getTodayDiary, addBooking, cancelBooking,
       setMealPlan, generateGroceryList, toggleGroceryItem,
     }}>
