@@ -1,0 +1,134 @@
+Build a South African health & wellness app called "VITL" (or suggest a better name). This is a mobile-first web app (React) that combines fitness class booking, local health spot discovery, calorie tracking with SA foods, and AI-powered meal planning using real products from South African grocery stores.
+
+---
+
+## DESIGN DIRECTION
+- Mobile-first, full-screen layout optimised for phones
+- Aesthetic: clean, energetic, modern African wellness — think earthy greens, warm terracotta, and clean whites. NOT a generic purple/blue fitness app.
+- Font pairing: a bold distinctive display font for headings + clean sans-serif for body
+- Bottom navigation bar with 5 tabs
+- Smooth page transitions and micro-animations
+- Dark mode support
+
+---
+
+## CORE SCREENS TO BUILD
+
+### 1. ONBOARDING / PROFILE SETUP
+- Name, age, weight, height inputs
+- Health goal selector: Lose Weight / Build Muscle / Eat Healthier / Manage Condition / General Wellness
+- Activity level selector
+- Dietary preferences: Omnivore / Vegetarian / Vegan / Halaal / Kosher / Diabetic-friendly
+- City selector: Johannesburg / Cape Town / Durban / Pretoria / Other
+
+### 2. HOME DASHBOARD
+- Greeting with user's name
+- Daily summary ring/card: calories consumed vs goal, water intake, steps, active minutes
+- "Today's Classes" horizontal scroll — upcoming bookable fitness classes nearby
+- "Meal Suggestion of the Day" card with a SA-localised recipe
+- Quick log buttons: + Food, + Water, + Workout
+- Streak counter (days active)
+
+### 3. FITNESS CLASSES TAB
+- Search bar + filters: class type (Yoga / CrossFit / Pilates / HIIT / Boxing / Spin / Dance / Outdoor), city, price range, time of day
+- List/map toggle view of fitness studios and classes
+- Class card: studio name, class type, instructor, time, price in ZAR, spots left, distance
+- Class detail page: description, instructor bio, studio location on map, book button
+- Booking confirmation screen
+- My Bookings section showing upcoming and past classes
+- Use placeholder/mock data for studios across Joburg, Cape Town, Durban, Pretoria
+
+### 4. DISCOVER TAB (Health Spots)
+- Map view + list view toggle
+- Categories: Healthy Restaurants / Juice Bars / Supplement Stores / Outdoor Gyms / Hiking Trails / Parkrun Routes / Wellness Centres / Spas
+- Location cards with name, category tag, rating (1-5 stars), distance, brief description
+- Filter by category and distance radius
+- Detail page: photos placeholder, hours, address, "Get Directions" button, user reviews
+- Mock data for real-sounding SA health spots in major cities
+
+### 5. FOOD & NUTRITION TAB
+Sub-sections:
+
+**A. Food Diary**
+- Daily log with breakfast / lunch / dinner / snacks sections
+- + Add Food button opening a search
+- Food search database including:
+  - SA staples: pap, chakalaka, boerewors, biltong, vetkoek, bunny chow, gatsby, kotas, roti, samoosas, braai meats, umngqusho, morogo
+  - Woolworths SA products (mock data with realistic names and macros)
+  - Pick n Pay products (mock data)
+  - Checkers products (mock data)
+  - Common SA fast food: Nando's, Steers, Chicken Licken, KFC SA menu items
+- Each food item shows: calories, protein, carbs, fat per serving
+- Barcode scan button (UI only, show "scanning..." state)
+- Photo snap to identify food (UI only)
+- Daily macro breakdown: calories, protein, carbs, fat with progress bars
+- Water tracker with + glass buttons
+
+**B. Meal Planner**
+- Weekly meal plan grid (Mon-Sun × Breakfast/Lunch/Dinner)
+- "Generate Plan" button that creates a 7-day meal plan based on:
+  - User's calorie goal
+  - Dietary preferences set in profile
+  - Budget selector: Economy (R500/week) / Standard (R1000/week) / Premium (R1500/week)
+- Each meal shows: dish name, calories, prep time
+- "View Recipe" expands to show ingredients + steps
+- "Shop This Plan" button generates a combined grocery list
+
+**C. Smart Grocery List**
+- Auto-generated from meal plan OR manually built
+- Items grouped by store section (Produce / Meat / Dairy / Pantry / etc.)
+- Each item shows: ingredient, quantity, estimated price in ZAR
+- Store selector toggle: Woolworths / Pick n Pay / Checkers — shows estimated total per store
+- Checkbox to tick off items while shopping
+- Estimated weekly total in ZAR
+
+### 6. PROFILE & STATS TAB
+- Profile photo placeholder + name + goal
+- Weekly stats: calories avg, workouts completed, classes attended, streak
+- Weight tracker with simple line chart (mock data showing progress)
+- Body measurements log
+- Achievements/badges (First Class Booked, 7-Day Streak, Healthy Week, etc.)
+- Settings: units (metric/imperial), notifications, dietary preferences
+- Discovery Vitality integration banner (coming soon)
+
+---
+
+## TECHNICAL REQUIREMENTS
+- React with hooks (useState, useContext for global state)
+- React Router for navigation
+- Tailwind CSS for styling
+- Recharts or Chart.js for stats/progress charts
+- Lucide React for icons
+- LocalStorage to persist user profile, food diary entries, bookings
+- Mock data files (JSON) for: food database, fitness studios, health spots, meal templates
+- Mobile viewport optimised (375px-430px primary)
+- PWA manifest so it can be "installed" on phone
+
+---
+
+## MOCK DATA TO INCLUDE
+
+**Fitness Studios (examples):**
+- Virgin Active (multiple branches), Planet Fitness, CrossFit Joburg, Sweat 1000, Yoga Republic Cape Town, Barry's Bootcamp Sandton, F45 Training, Pilates Studio Cape Town
+
+**Health Spots:**
+- Kauai (multiple locations), Wellness Warehouse, Faithful to Nature, Leafy Greens Café, Col'Cacchio (healthy options), Kirstenbosch trails, Lion's Head hike, parkrun Johannesburg
+
+**SA Food Database (at minimum 80 items) including:**
+- Traditional SA foods with accurate macros
+- Woolworths Food items (salads, ready meals, health snacks)
+- Pick n Pay items
+- Checkers items
+- SA restaurant items (Nando's, etc.)
+
+---
+
+## STRETCH FEATURES (implement if time allows)
+- Stokvel savings group for healthy eating (group grocery savings)
+- Load shedding aware scheduling (class times adjusted with loadshedding schedule)
+- 11 official SA languages toggle (at minimum English + Zulu + Afrikaans for key UI strings)
+- Referral system: "Invite a friend to a class"
+
+---
+
+Build this as a complete, navigable prototype with all screens functional using mock data. Every screen should be fully designed and interactive — no placeholder grey boxes. The app should feel like a real, polished product ready for investor demo.
